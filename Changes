@@ -1,0 +1,35 @@
+Revision history for Perl extension POE::Component::SpreadClient.
+
+* 0.06
+
+	Kwalitee-related fixes
+
+* 0.05
+
+	tweaked the POE::Session::AttributeBased code for compatibility, apologies for the late release!
+		- thanks to XANTUS and FMERGES
+
+* 0.04
+
+	Added the custom_flags arg to publish
+	Totally revamped the _sp_admin event
+	Removed the $type variable from _sp_message
+	Added 1 more error type to _sp_error
+	POD tweaks as usual
+	Kwalitee-related fixes
+
+* 0.03
+
+	learned about the difference between ref $self and ref( $self )
+	Squashed a bug where it would send a sp_error then sp_disconnect, should be sp_error only!
+	Added new destroy event
+	POD tweaks
+
+* 0.02
+
+	POD tweaks
+	Updated the _sp_error routine to include $priv_name ( arguments shifted right by 1 )
+	Spread.pm does not like 1-member arrayref ( publish/subscribe/unsubscribe now does array collapsing )
+
+* 0.01
+	first release

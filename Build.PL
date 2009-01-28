@@ -33,7 +33,7 @@ my $build = Module::Build->new(
 		'POE::Wheel::ReadWrite'		=> 0,
 
 		# Spread itself!
-		'Spread'			=> '3.17',
+		'Spread'			=> '3.017',
 	},
 
 	# FIXME wishlist...

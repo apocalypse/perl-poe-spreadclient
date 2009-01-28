@@ -6,10 +6,10 @@ use Test::More;
 if ( not $ENV{TEST_AUTHOR} ) {
 	plan skip_all => 'Author test. Sent $ENV{TEST_AUTHOR} to a true value to run.';
 } else {
-	eval "use Test::Strict";
+	eval "use Test::Compile";
 	if ( $@ ) {
-		plan skip_all => 'Test::Strict required to test strictness';
+		plan skip_all => 'Test::Compile required for validating the perl files';
 	} else {
-		all_perl_files_ok( 'lib/' );
+		all_pm_files_ok();
 	}
 }

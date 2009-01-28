@@ -6,10 +6,13 @@ use Test::More;
 if ( not $ENV{TEST_AUTHOR} ) {
 	plan skip_all => 'Author test. Sent $ENV{TEST_AUTHOR} to a true value to run.';
 } else {
-	eval "use Test::Strict";
+	eval "use Test::Fixme";
 	if ( $@ ) {
-		plan skip_all => 'Test::Strict required to test strictness';
+		plan skip_all => 'Test::Fixme required for checking for presence of FIXMEs';
 	} else {
-		all_perl_files_ok( 'lib/' );
+		run_tests(
+			'where'		=> 'lib',
+			'match'		=> qr/FIXME|TODO/,
+		);
 	}
 }

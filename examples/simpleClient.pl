@@ -1,14 +1,5 @@
 #!/usr/bin/perl
-package simpleClient;
-
-# Make sure we don't do anything silly
-sub POE::Kernel::ASSERT_DEFAULT   () { 1 }
-#sub POE::Kernel::TRACE_DEFAULT    () { 1 }
-sub POE::Session::ASSERT_DEFAULT  () { 1 }
-
-# Standard stuff to catch errors
-use strict qw(subs vars refs);				# Make sure we can't mess up
-use warnings FATAL => 'all';				# Enable warnings to catch errors
+use strict; use warnings;
 
 # A sample program that "pings" a group every 2 seconds
 use POE;
@@ -22,15 +13,16 @@ use base 'POE::Session::AttributeBased';
 POE::Component::SpreadClient->spawn();
 
 # Okay, create our session!
-POE::Session::AttributeBased->create(
-	'heap'	=>	{},
-) or die;
+POE::Session->create(
+	__PACKAGE__->inline_states(),
+	'heap'	=> {},
+);
 
 # Start the kernel!
 POE::Kernel->run();
 exit;
 
-sub _start : state {
+sub _start : State {
 	# Set our alias
 	$poe_kernel->alias_set( 'displayer' );
 
@@ -38,16 +30,16 @@ sub _start : state {
 	$poe_kernel->post( 'SpreadClient' => 'connect' => 'localhost' );
 }
 
-sub _child : state {
+sub _child : State {
 }
 
-sub _stop : state {
+sub _stop : State {
 }
 
 # Local counter
 my $counter = 0;
 
-sub do_query : state {
+sub do_query : State {
 	# Are we even connected?
 	if ( exists $_[HEAP]->{'DISCON'} ) {
 		return;
@@ -68,7 +60,7 @@ sub do_query : state {
 	return;
 }
 
-sub _sp_message : state {
+sub _sp_message : State {
 	my( $sender, $groups, $message ) = @_[ ARG2, ARG3, ARG5 ];
 
 	# Simplify the groups
@@ -91,7 +83,7 @@ sub _sp_message : state {
 	return;
 }
 
-sub _sp_admin : state {
+sub _sp_admin : State {
 	my( $priv_name, $type, $sender, $groups, $mess_type, $message ) = @_[ ARG0 .. ARG5 ];
 
 	# Dumper!
@@ -101,7 +93,7 @@ sub _sp_admin : state {
 	return;
 }
 
-sub _sp_connect : state {
+sub _sp_connect : State {
 	print "We're connected to the Spread server!\n";
 
 	# Subscribe!
@@ -114,7 +106,7 @@ sub _sp_connect : state {
 	return;
 }
 
-sub _sp_disconnect : state {
+sub _sp_disconnect : State {
 	print "We're disconnected from the Spread server!\n";
 
 	$_[HEAP]->{'DISCON'} = 1;
@@ -123,7 +115,7 @@ sub _sp_disconnect : state {
 	return;
 }
 
-sub _sp_error : state {
+sub _sp_error : State {
 	my( $type, $sperrno, $msg, $data ) = @_[ ARG0 .. ARG3 ];
 
 	# Handle different kinds of errors

@@ -4,7 +4,7 @@ use strict; use warnings;
 
 # Initialize our version $LastChangedRevision: 9 $
 use vars qw( $VERSION );
-$VERSION = '0.06';
+$VERSION = '0.07';
 
 # Load our stuff
 use POE qw( Wheel::ReadWrite );
@@ -17,10 +17,7 @@ use base 'POE::Session::AttributeBased';
 
 # Set some constants
 BEGIN {
-	# Debug fun!
-	if ( ! defined &DEBUG ) {
-		eval "sub DEBUG () { 0 }";
-	}
+	if ( ! defined &DEBUG ) { *DEBUG = sub () { 0 } }
 }
 
 # Create our instance!
@@ -193,7 +190,7 @@ sub disconnect : State {
 		$_[HEAP]->{'DISCONNECTED'} = 1;
 
 		# Inform our registered listeners
-		# XXX Should I use POST here instead?
+		# FIXME Should I use POST here instead?
 		foreach my $l ( keys %{ $_[HEAP]->{'LISTEN'} } ) {
 			$_[KERNEL]->call( $l, '_sp_disconnect', $_[HEAP]->{'PRIV_NAME'} );
 		}
@@ -515,7 +512,7 @@ __END__
 
 =head1 NAME
 
-POE::Component::SpreadClient - handle Spread communications in POE
+POE::Component::SpreadClient - Handle Spread communications in POE
 
 =head1 SYNOPSIS
 
@@ -523,12 +520,12 @@ POE::Component::SpreadClient - handle Spread communications in POE
 
 	POE::Session->create(
 	    inline_states => {
-	        _start => \&_start,
-	        _sp_message => \&do_something,
-	        _sp_admin => \&do_something,
-	        _sp_connect => \&do_something,
-	        _sp_disconnect => \&do_something,
-	        _sp_error => \&do_something,
+		_start => \&_start,
+		_sp_message => \&do_something,
+		_sp_admin => \&do_something,
+		_sp_connect => \&do_something,
+		_sp_disconnect => \&do_something,
+		_sp_error => \&do_something,
 	    }
 	);
 

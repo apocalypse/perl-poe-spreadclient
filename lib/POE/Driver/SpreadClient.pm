@@ -4,7 +4,7 @@ use strict; use warnings;
 
 # Our version stuff
 use vars qw( $VERSION );
-$VERSION = (qw$LastChangedRevision: 9 $)[1];
+$VERSION = '10';
 
 # Import some stuff
 use Spread;

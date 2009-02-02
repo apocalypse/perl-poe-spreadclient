@@ -378,7 +378,7 @@ sub unsubscribe : State {
 	if ( $@ ) {
 		# Inform our registered listeners
 		foreach my $l ( keys %{ $_[HEAP]->{'LISTEN'} } ) {
-			$_[KERNEL]->post( $l, '_sp_error', $_[HEAP]->{'PRIV_NAME'}, 'SUBSCRIBE', $sperrno, $groups );
+			$_[KERNEL]->post( $l, '_sp_error', $_[HEAP]->{'PRIV_NAME'}, 'UNSUBSCRIBE', $sperrno, $groups );
 		}
 
 		if ( $@ eq "disconnected" ) {

@@ -1,11 +1,19 @@
 #!/usr/bin/perl
 
-# Import the stuff
-# XXX no idea why this is broken for this particular dist!
-#use Test::UseAllModules;
-#BEGIN { all_uses_ok(); }
+my $numtests;
+BEGIN {
+	$numtests = 3;
 
-use Test::More tests => 3;
+	eval "use Test::NoWarnings";
+	if ( ! $@ ) {
+		# increment by one
+		$numtests++;
+
+	}
+}
+
+use Test::More tests => $numtests;
+
 use_ok( 'POE::Component::SpreadClient' );
 use_ok( 'POE::Driver::SpreadClient' );
 use_ok( 'POE::Filter::SpreadClient' );

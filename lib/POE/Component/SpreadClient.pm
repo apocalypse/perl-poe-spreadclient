@@ -4,7 +4,7 @@ use strict; use warnings;
 
 # Initialize our version $LastChangedRevision: 9 $
 use vars qw( $VERSION );
-$VERSION = '0.07';
+$VERSION = '0.08';
 
 # Load our stuff
 use 5.006;	# to silence Perl::Critic's Compatibility::ProhibitThreeArgumentOpen
@@ -779,7 +779,9 @@ L<Spread::Message>
 
 L<POE::Component::Spread>
 
-=head1 CREDITS
+=head1 AUTHOR
+
+Apocalypse E<lt>apocal@cpan.orgE<gt>
 
 The base for this module was lifted from POE::Component::Spread by
 Rob Partington <perl-pcs@frottage.org>.

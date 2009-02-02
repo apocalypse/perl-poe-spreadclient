@@ -7,7 +7,10 @@ use vars qw( $VERSION );
 $VERSION = '0.07';
 
 # Load our stuff
-use POE qw( Wheel::ReadWrite );
+use 5.006;	# to silence Perl::Critic's Compatibility::ProhibitThreeArgumentOpen
+use POE;
+use POE::Session;
+use POE::Wheel::ReadWrite;
 use POE::Driver::SpreadClient;
 use POE::Filter::SpreadClient;
 use Spread qw( :MESS :ERROR );
@@ -41,11 +44,14 @@ sub spawn {
 
 	# Okay, create our session!
 	POE::Session->create(
-		__PACKAGE__->inline_states(),
+		__PACKAGE__->inline_states(),		## no critic ( RequireExplicitInclusion )
 		'heap'	=>	{
 			'ALIAS'		=>	$ALIAS,
 		},
 	);
+
+	# return success
+	return 1;
 }
 
 sub _start : State {
@@ -58,6 +64,8 @@ sub _start : State {
 	if ( $_[KERNEL]->alias_set( $_[HEAP]->{'ALIAS'} ) != 0 ) {
 		die "unable to set alias: " . $_[HEAP]->{'ALIAS'};
 	}
+
+	return;
 }
 
 sub _stop : State {
@@ -68,6 +76,8 @@ sub _stop : State {
 
 	# Wow, go disconnect ourself!
 	$_[KERNEL]->call( $_[SESSION], 'disconnect' );
+
+	return;
 }
 
 sub connect : State {
@@ -138,7 +148,7 @@ sub connect : State {
 			$_[HEAP]->{'MBOX'} = $mbox;
 
 			# Create a FH to feed into Wheel::ReadWrite
-			open $_[HEAP]->{'FH'}, "<&=$mbox";
+			open $_[HEAP]->{'FH'}, '<&=', $mbox;
 
 			# Finally, create the wheel!
 			$_[HEAP]->{'WHEEL'} = POE::Wheel::ReadWrite->new(
@@ -423,6 +433,8 @@ sub RW_Error : State {
 
 	# Disconnect now!
 	$_[KERNEL]->call( $_[SESSION], 'disconnect' );
+
+	return;
 }
 
 sub RW_GotPacket : State {

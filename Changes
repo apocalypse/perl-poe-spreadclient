@@ -6,6 +6,7 @@ Revision history for Perl extension POE::Component::SpreadClient.
 	Fixed multiple group subscribe bug, thanks RT#38854
 	Removed stupid Test::* module requirements, thanks BiNGOs!
 	revamped test suite to modernize it
+	bumped perl requirement to 5.006 for sanity
 
 * 0.06
 

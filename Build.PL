@@ -1,4 +1,5 @@
 # Build.PL
+use strict; use warnings;
 use Module::Build;
 
 my $build = Module::Build->new(
@@ -29,6 +30,9 @@ my $build = Module::Build->new(
 
 		# Spread itself!
 		'Spread'			=> '3.017',
+
+		# minimum perl version
+		'perl'				=> '5.006',
 	},
 );
 

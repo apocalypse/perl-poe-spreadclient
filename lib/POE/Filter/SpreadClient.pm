@@ -4,7 +4,7 @@ use strict; use warnings;
 
 # Our version stuff
 use vars qw( $VERSION );
-$VERSION = '0.08';
+$VERSION = '0.09';
 
 sub new {
     my $type = shift;

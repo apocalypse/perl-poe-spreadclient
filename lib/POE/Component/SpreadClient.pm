@@ -4,7 +4,7 @@ use strict; use warnings;
 
 # Initialize our version $LastChangedRevision: 9 $
 use vars qw( $VERSION );
-$VERSION = '0.08';
+$VERSION = '0.09';
 
 # Load our stuff
 use 5.006;	# to silence Perl::Critic's Compatibility::ProhibitThreeArgumentOpen
@@ -43,15 +43,15 @@ sub spawn {
 	}
 
 	# Okay, create our session!
-	POE::Session->create(
+	my $sess = POE::Session->create(
 		__PACKAGE__->inline_states(),		## no critic ( RequireExplicitInclusion )
 		'heap'	=>	{
 			'ALIAS'		=>	$ALIAS,
 		},
 	);
 
-	# return success
-	return 1;
+	# return the session's ID in case the caller needs it
+	return $sess->ID;
 }
 
 sub _start : State {
@@ -438,86 +438,89 @@ sub RW_Error : State {
 }
 
 sub RW_GotPacket : State {
-	my( $type, $sender, $groups, $mess_type, $endian, $message ) = @{ @{ $_[ARG0] }[0] };
+	# we might get multiple packets per read
+	for my $packet ( @{ $_[ARG0] } ) {
+		my( $type, $sender, $groups, $mess_type, $endian, $message ) = @$packet;
 
-	# Check for disconnect
-	if ( ! defined $type ) {
-		# Disconnect now!
-		$_[KERNEL]->call( $_[SESSION], 'disconnect' );
-	} else {
-		# Check the type
-		if ( $type & REGULAR_MESS ) {
-			# Do we have an endian problem?
-			if ( defined $endian and $endian ) {
-				# FIXME Argh!
-				if ( DEBUG ) {
-					warn "endian mis-match detected!";
-				}
-			}
-
-			# Regular message
-			foreach my $l ( keys %{ $_[HEAP]->{'LISTEN'} } ) {
-				$_[KERNEL]->post( $l, '_sp_message', $_[HEAP]->{'PRIV_NAME'}, $sender, $groups, $mess_type, $message );
-			}
+		# Check for disconnect
+		if ( ! defined $type ) {
+			# Disconnect now!
+			$_[KERNEL]->call( $_[SESSION], 'disconnect' );
 		} else {
-			# Okay, figure out the type
-			if ( $type &  TRANSITION_MESS ) {
-				# Transitional Message
-				foreach my $l ( keys %{ $_[HEAP]->{'LISTEN'} } ) {
-					$_[KERNEL]->post( $l, '_sp_admin', $_[HEAP]->{'PRIV_NAME'}, { 'TYPE' => 'TRANSITIONAL', 'GROUP' => $sender } );
-				}
-			} elsif ( $type & CAUSED_BY_LEAVE and ! ( $type & REG_MEMB_MESS ) ) {
-				# Self leave
-				foreach my $l ( keys %{ $_[HEAP]->{'LISTEN'} } ) {
-					$_[KERNEL]->post( $l, '_sp_admin', $_[HEAP]->{'PRIV_NAME'}, { 'TYPE' => 'SELF_LEAVE', 'GROUP' => $sender } );
-				}
-			} elsif ( $type & REG_MEMB_MESS ) {
-				# Parse the message!
-				my ( $gid1, $gid2, $gid3, $num_memb, $member );
-				eval {
-					( $gid1, $gid2, $gid3, $num_memb, $member ) = unpack( "IIIIa*", $message );
-				};
-				if ( $@ ) {
-					# Inform our registered listeners
-					foreach my $l ( keys %{ $_[HEAP]->{'LISTEN'} } ) {
-						$_[KERNEL]->post( $l, '_sp_error', $_[HEAP]->{'PRIV_NAME'}, 'RECEIVE', $@ );
+			# Check the type
+			if ( $type & REGULAR_MESS ) {
+				# Do we have an endian problem?
+				if ( defined $endian and $endian ) {
+					# FIXME Argh!
+					if ( DEBUG ) {
+						warn "endian mis-match detected!";
 					}
-				} else {
-					# Okay, what was it?
-					if ( $type & CAUSED_BY_JOIN ) {
-						# Inform our registered listeners
-						foreach my $l ( keys %{ $_[HEAP]->{'LISTEN'} } ) {
-							$_[KERNEL]->post( $l, '_sp_admin', $_[HEAP]->{'PRIV_NAME'}, { 'TYPE' => 'JOIN', 'GROUP' => $sender, 'MEMBERS' => $groups, 'WHO' => $member, 'GID' => [ $gid1, $gid2, $gid3 ], 'INDEX' => $mess_type } );
-						}
-					} elsif ( $type & CAUSED_BY_LEAVE ) {
-						# Inform our registered listeners
-						foreach my $l ( keys %{ $_[HEAP]->{'LISTEN'} } ) {
-							$_[KERNEL]->post( $l, '_sp_admin', $_[HEAP]->{'PRIV_NAME'}, { 'TYPE' => 'LEAVE', 'GROUP' => $sender, 'MEMBERS' => $groups, 'WHO' => $member, 'GID' => [ $gid1, $gid2, $gid3 ], 'INDEX' => $mess_type } );
-						}
-					} elsif ( $type & CAUSED_BY_DISCONNECT ) {
-						# Inform our registered listeners
-						foreach my $l ( keys %{ $_[HEAP]->{'LISTEN'} } ) {
-							$_[KERNEL]->post( $l, '_sp_admin', $_[HEAP]->{'PRIV_NAME'}, { 'TYPE' => 'DISCONNECT', 'GROUP' => $sender, 'MEMBERS' => $groups, 'WHO' => $member, 'GID' => [ $gid1, $gid2, $gid3 ], 'INDEX' => $mess_type } );
-						}
-					} elsif ( $type & CAUSED_BY_NETWORK ) {
-						# FIXME Unpack the full nodelist
-						#my @nodes = unpack( "a32" x ( length( $member ) / 32 + 1 ), $member );
+				}
 
-						# Network failure
-						foreach my $l ( keys %{ $_[HEAP]->{'LISTEN'} } ) {
-							$_[KERNEL]->post( $l, '_sp_admin', $_[HEAP]->{'PRIV_NAME'}, { 'TYPE' => 'NETWORK', 'GROUP' => $sender, 'MEMBERS' => $groups, 'GID' => [ $gid1, $gid2, $gid3 ], 'INDEX' => $mess_type, 'MESSAGE' => $message } );
-						}
-					} else {
-						# Unknown?
-						foreach my $l ( keys %{ $_[HEAP]->{'LISTEN'} } ) {
-							$_[KERNEL]->post( $l, '_sp_error', $_[HEAP]->{'PRIV_NAME'}, 'RECEIVE', 'UNKNOWN PACKET TYPE' );
-						}
-					}
+				# Regular message
+				foreach my $l ( keys %{ $_[HEAP]->{'LISTEN'} } ) {
+					$_[KERNEL]->post( $l, '_sp_message', $_[HEAP]->{'PRIV_NAME'}, $sender, $groups, $mess_type, $message );
 				}
 			} else {
-				# Unknown?
-				foreach my $l ( keys %{ $_[HEAP]->{'LISTEN'} } ) {
-					$_[KERNEL]->post( $l, '_sp_error', $_[HEAP]->{'PRIV_NAME'}, 'RECEIVE', 'UNKNOWN PACKET TYPE' );
+				# Okay, figure out the type
+				if ( $type &  TRANSITION_MESS ) {
+					# Transitional Message
+					foreach my $l ( keys %{ $_[HEAP]->{'LISTEN'} } ) {
+						$_[KERNEL]->post( $l, '_sp_admin', $_[HEAP]->{'PRIV_NAME'}, { 'TYPE' => 'TRANSITIONAL', 'GROUP' => $sender } );
+					}
+				} elsif ( $type & CAUSED_BY_LEAVE and ! ( $type & REG_MEMB_MESS ) ) {
+					# Self leave
+					foreach my $l ( keys %{ $_[HEAP]->{'LISTEN'} } ) {
+						$_[KERNEL]->post( $l, '_sp_admin', $_[HEAP]->{'PRIV_NAME'}, { 'TYPE' => 'SELF_LEAVE', 'GROUP' => $sender } );
+					}
+				} elsif ( $type & REG_MEMB_MESS ) {
+					# Parse the message!
+					my ( $gid1, $gid2, $gid3, $num_memb, $member );
+					eval {
+						( $gid1, $gid2, $gid3, $num_memb, $member ) = unpack( "IIIIa*", $message );
+					};
+					if ( $@ ) {
+						# Inform our registered listeners
+						foreach my $l ( keys %{ $_[HEAP]->{'LISTEN'} } ) {
+							$_[KERNEL]->post( $l, '_sp_error', $_[HEAP]->{'PRIV_NAME'}, 'RECEIVE', $@ );
+						}
+					} else {
+						# Okay, what was it?
+						if ( $type & CAUSED_BY_JOIN ) {
+							# Inform our registered listeners
+							foreach my $l ( keys %{ $_[HEAP]->{'LISTEN'} } ) {
+								$_[KERNEL]->post( $l, '_sp_admin', $_[HEAP]->{'PRIV_NAME'}, { 'TYPE' => 'JOIN', 'GROUP' => $sender, 'MEMBERS' => $groups, 'WHO' => $member, 'GID' => [ $gid1, $gid2, $gid3 ], 'INDEX' => $mess_type } );
+							}
+						} elsif ( $type & CAUSED_BY_LEAVE ) {
+							# Inform our registered listeners
+							foreach my $l ( keys %{ $_[HEAP]->{'LISTEN'} } ) {
+								$_[KERNEL]->post( $l, '_sp_admin', $_[HEAP]->{'PRIV_NAME'}, { 'TYPE' => 'LEAVE', 'GROUP' => $sender, 'MEMBERS' => $groups, 'WHO' => $member, 'GID' => [ $gid1, $gid2, $gid3 ], 'INDEX' => $mess_type } );
+							}
+						} elsif ( $type & CAUSED_BY_DISCONNECT ) {
+							# Inform our registered listeners
+							foreach my $l ( keys %{ $_[HEAP]->{'LISTEN'} } ) {
+								$_[KERNEL]->post( $l, '_sp_admin', $_[HEAP]->{'PRIV_NAME'}, { 'TYPE' => 'DISCONNECT', 'GROUP' => $sender, 'MEMBERS' => $groups, 'WHO' => $member, 'GID' => [ $gid1, $gid2, $gid3 ], 'INDEX' => $mess_type } );
+							}
+						} elsif ( $type & CAUSED_BY_NETWORK ) {
+							# FIXME Unpack the full nodelist
+							#my @nodes = unpack( "a32" x ( length( $member ) / 32 + 1 ), $member );
+
+							# Network failure
+							foreach my $l ( keys %{ $_[HEAP]->{'LISTEN'} } ) {
+								$_[KERNEL]->post( $l, '_sp_admin', $_[HEAP]->{'PRIV_NAME'}, { 'TYPE' => 'NETWORK', 'GROUP' => $sender, 'MEMBERS' => $groups, 'GID' => [ $gid1, $gid2, $gid3 ], 'INDEX' => $mess_type, 'MESSAGE' => $message } );
+							}
+						} else {
+							# Unknown?
+							foreach my $l ( keys %{ $_[HEAP]->{'LISTEN'} } ) {
+								$_[KERNEL]->post( $l, '_sp_error', $_[HEAP]->{'PRIV_NAME'}, 'RECEIVE', 'UNKNOWN PACKET TYPE' );
+							}
+						}
+					}
+				} else {
+					# Unknown?
+					foreach my $l ( keys %{ $_[HEAP]->{'LISTEN'} } ) {
+						$_[KERNEL]->post( $l, '_sp_error', $_[HEAP]->{'PRIV_NAME'}, 'RECEIVE', 'UNKNOWN PACKET TYPE' );
+					}
 				}
 			}
 		}
@@ -571,6 +574,8 @@ XXX Beware: this module hasn't been tested with Spread 4! XXX
 	POE::Component::Spread->spawn( 'spread' );
 
 	- The alias the component will take ( default: "SpreadClient" )
+
+	Returns the session ID.
 
 =head1 Public API
 

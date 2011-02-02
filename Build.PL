@@ -17,8 +17,6 @@ my $build = Module::Build->new(
 
 	'test_files'		=> 't/*.t',
 
-	'add_to_cleanup'	=> [ 'META.yml', 'Makefile.PL', 'README', 'Makefile' ],	# automatically generated
-
 	'requires'		=> {
 		# POE Stuff
 		'POE'				=> 0,
@@ -33,6 +31,8 @@ my $build = Module::Build->new(
 
 		# minimum perl version
 		'perl'				=> '5.006',
+
+		'constant'			=> 0,
 	},
 );
 

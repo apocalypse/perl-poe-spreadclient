@@ -1,5 +1,10 @@
 Revision history for Perl extension POE::Component::SpreadClient.
 
+* 0.09
+
+	Made the constructor return the sessionID, RT#65383 ( thanks RDB! )
+	Fix a long-standing bug where it dropped multiple messages in a processing run, RT#59423 ( thanks RDB! )
+
 * 0.08
 
 	Fixed mis-rename of AUTHOR section into CREDITS :(

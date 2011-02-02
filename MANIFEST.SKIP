@@ -26,3 +26,4 @@
 
 # our tarballs
 \.tar\.gz$
+^MYMETA.yml$

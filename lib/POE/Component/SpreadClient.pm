@@ -1,10 +1,6 @@
-# Declare our package
 package POE::Component::SpreadClient;
-use strict; use warnings;
 
-# Initialize our version $LastChangedRevision: 9 $
-use vars qw( $VERSION );
-$VERSION = '0.09';
+# ABSTRACT: Handle Spread communications in POE
 
 # Load our stuff
 use 5.006;	# to silence Perl::Critic's Compatibility::ProhibitThreeArgumentOpen
@@ -13,7 +9,7 @@ use POE::Session;
 use POE::Wheel::ReadWrite;
 use POE::Driver::SpreadClient;
 use POE::Filter::SpreadClient;
-use Spread qw( :MESS :ERROR );
+use Spread 3.017 qw( :MESS :ERROR );
 
 # Generate our states!
 use base 'POE::Session::AttributeBased';
@@ -148,25 +144,46 @@ sub connect : State {
 			$_[HEAP]->{'MBOX'} = $mbox;
 
 			# Create a FH to feed into Wheel::ReadWrite
-			open $_[HEAP]->{'FH'}, '<&=', $mbox;
-
-			# Finally, create the wheel!
-			$_[HEAP]->{'WHEEL'} = POE::Wheel::ReadWrite->new(
-				'Handle'	=> $_[HEAP]->{'FH'},
-				'Driver'	=> POE::Driver::SpreadClient->new( $mbox ),
-				'Filter'	=> POE::Filter::SpreadClient->new(),
-
-				'InputEvent' => 'RW_GotPacket',
-				'ErrorEvent' => 'RW_Error'
-			);
-
-			# Inform our registered listeners
-			foreach my $l ( keys %{ $_[HEAP]->{'LISTEN'} } ) {
-				$_[KERNEL]->post( $l, '_sp_connect', $priv, $priv_group );
+			# we retry because... there seems to be several microseconds until fileno() works!
+			# TODO we need to investigate the underlying cause of this...
+			my $retries = 0;
+			until ( ++$retries == 10 || ( $_[HEAP]->{'FH'} && fileno( $_[HEAP]->{'FH'} ) ) ) {
+				open $_[HEAP]->{'FH'}, '<&=', $mbox;
+				if ( DEBUG ) {
+					warn "SpreadClient: bad fh!!! retrying" if ! fileno( $_[HEAP]->{'FH'} );
+				}
 			}
+			if ( $retries == 10 ) {
+				if ( DEBUG ) {
+					warn "SpreadClient: UNABLE to create FH from mbox!";
+				}
 
-			# We're connected...
-			delete $_[HEAP]->{'DISCONNECTED'} if exists $_[HEAP]->{'DISCONNECTED'};
+				# Inform our registered listeners
+				foreach my $l ( keys %{ $_[HEAP]->{'LISTEN'} } ) {
+					$_[KERNEL]->post( $l, '_sp_error', $_[HEAP]->{'PRIV_NAME'}, 'CONNECT', 'BADFH', $server, $priv );
+				}
+
+				# We're not connected...
+				$_[HEAP]->{'DISCONNECTED'} = 1;
+			} else {
+				# Finally, create the wheel!
+				$_[HEAP]->{'WHEEL'} = POE::Wheel::ReadWrite->new(
+					'Handle'	=> $_[HEAP]->{'FH'},
+					'Driver'	=> POE::Driver::SpreadClient->new( $mbox ),
+					'Filter'	=> POE::Filter::SpreadClient->new(),
+
+					'InputEvent' => 'RW_GotPacket',
+					'ErrorEvent' => 'RW_Error'
+				);
+
+				# Inform our registered listeners
+				foreach my $l ( keys %{ $_[HEAP]->{'LISTEN'} } ) {
+					$_[KERNEL]->post( $l, '_sp_connect', $priv, $priv_group );
+				}
+
+				# We're connected...
+				delete $_[HEAP]->{'DISCONNECTED'} if exists $_[HEAP]->{'DISCONNECTED'};
+			}
 		}
 	}
 
@@ -531,11 +548,8 @@ sub RW_GotPacket : State {
 }
 
 1;
-__END__
 
-=head1 NAME
-
-POE::Component::SpreadClient - Handle Spread communications in POE
+=pod
 
 =head1 SYNOPSIS
 
@@ -742,60 +756,15 @@ You can enable debugging mode by doing this:
 	sub POE::Component::SpreadClient::DEBUG () { 1 }
 	use POE::Component::SpreadClient;
 
-=head1 SUPPORT
-
-You can find documentation for this module with the perldoc command.
-
-    perldoc POE::Component::SpreadClient
-
-=head2 Websites
-
-=over 4
-
-=item * AnnoCPAN: Annotated CPAN documentation
-
-L<http://annocpan.org/dist/POE-Component-SpreadClient>
-
-=item * CPAN Ratings
-
-L<http://cpanratings.perl.org/d/POE-Component-SpreadClient>
-
-=item * RT: CPAN's request tracker
-
-L<http://rt.cpan.org/NoAuth/Bugs.html?Dist=POE-Component-SpreadClient>
-
-=item * Search CPAN
-
-L<http://search.cpan.org/dist/POE-Component-SpreadClient>
-
-=back
-
-=head2 Bugs
-
-Please report any bugs or feature requests to C<bug-poe-component-spreadclient at rt.cpan.org>, or through
-the web interface at L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=POE-Component-SpreadClient>.  I will be
-notified, and then you'll automatically be notified of progress on your bug as I make changes.
-
 =head1 SEE ALSO
+Spread
+Spread::Message
 
-L<Spread>
-
-L<Spread::Message>
-
-L<POE::Component::Spread>
-
-=head1 AUTHOR
-
-Apocalypse E<lt>apocal@cpan.orgE<gt>
+=head1 ACKNOWLEDGEMENTS
 
 The base for this module was lifted from POE::Component::Spread by
 Rob Partington <perl-pcs@frottage.org>.
 
-=head1 COPYRIGHT AND LICENSE
-
-Copyright 2009 by Apocalypse
-
-This library is free software; you can redistribute it and/or modify
-it under the same terms as Perl itself.
+Thanks goes to Rob Bloodgood ( RDB ) for making sure this module still works!
 
 =cut

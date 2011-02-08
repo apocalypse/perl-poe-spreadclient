@@ -1,10 +1,6 @@
-# Declare our package
 package POE::Filter::SpreadClient;
-use strict; use warnings;
 
-# Our version stuff
-use vars qw( $VERSION );
-$VERSION = '0.09';
+# ABSTRACT: Implements the Spread filter for POE
 
 sub new {
     my $type = shift;
@@ -18,4 +14,11 @@ sub get {
 }
 
 1;
-__END__
+
+=pod
+
+=head1 DESCRIPTION
+
+This module implements the L<POE::Filter> interface for Spread.
+
+=cut

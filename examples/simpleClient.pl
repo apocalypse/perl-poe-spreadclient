@@ -1,5 +1,4 @@
 #!/usr/bin/perl
-use strict; use warnings;
 
 # A sample program that "pings" a group every 2 seconds
 use POE;

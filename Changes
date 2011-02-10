@@ -2,6 +2,9 @@ Revision history for Perl extension POE::Component::SpreadClient.
 
 {{$NEXT}}
 
+1.000
+	Released: 2011-02-10 02:03:44 UTC
+
 	Converted to Dist::Zilla for the release process!
 	Fix an issue with FH creation from Spread, RT#65576 ( thanks RDB! )
 

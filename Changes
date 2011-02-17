@@ -2,6 +2,11 @@ Revision history for Perl extension POE::Component::SpreadClient.
 
 {{$NEXT}}
 
+1.002
+	Released: 2011-02-17 00:34:38 UTC
+
+	Fix the parsing of REG_MEMB_MESS ( NULLs in WHO ), RT#65795 ( thanks RDB! )
+
 1.001
 	Released: 2011-02-10 03:03:39 UTC
 

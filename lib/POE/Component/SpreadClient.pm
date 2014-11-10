@@ -9,7 +9,12 @@ use POE::Session;
 use POE::Wheel::ReadWrite;
 use POE::Driver::SpreadClient;
 use POE::Filter::SpreadClient;
-use Spread 3.17.4.4 qw( :MESS :ERROR );
+
+# Thanks to RT#66904 for this craziness!
+{
+	no warnings;
+	use Spread 3.017 qw( :MESS :ERROR );
+}
 
 # Generate our states!
 use parent 'POE::Session::AttributeBased';

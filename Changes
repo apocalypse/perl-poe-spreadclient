@@ -4,7 +4,7 @@ Revision history for {{$dist->name}}
 	Updates to the auto-generated files
 	Tweak POD and some code slightly to pass PerlCritic and other tests
 	Fix the example client to make it work better
-	Bump the Spread.pm requirement to 3.17.4.4
+	Fix the Spread version specification, RT#66904 ( thanks LordV! )
 
 1.002	2011-02-17 00:34:38 UTC
 

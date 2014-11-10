@@ -60,18 +60,12 @@ sub do_query : State {
 }
 
 sub _sp_message : State {
-	my( $sender, $groups, $message ) = @_[ ARG2, ARG3, ARG5 ];
+	my( $priv_name, $sender, $groups, $mess_type, $message ) = @_[ ARG0 .. ARG4 ];
 
 	# Simplify the groups
-	my $grps = '[';
+	my $grps;
 	if ( ref $groups and ref $groups eq 'ARRAY' ) {
-		foreach my $g ( @$groups ) {
-			$grps .= " $g -";
-		}
-
-		# Get rid of the last -
-		chop $grps;
-		$grps .= ']';
+		$grps = '[ ' . join( ' - ', @$groups ) . ' ]';
 	} else {
 		$grps = $groups;
 	}
@@ -83,10 +77,10 @@ sub _sp_message : State {
 }
 
 sub _sp_admin : State {
-	my( $priv_name, $type, $sender, $groups, $mess_type, $message ) = @_[ ARG0 .. ARG5 ];
+	my( $priv_name, $data ) = @_[ ARG0, ARG1 ];
 
 	# Dumper!
-	print Dumper( $priv_name, $type, $sender, $groups, $mess_type, $message );
+	print "SP_ADMIN from $priv_name " . Dumper( $data );
 
 	# All done!
 	return;
@@ -115,7 +109,7 @@ sub _sp_disconnect : State {
 }
 
 sub _sp_error : State {
-	my( $type, $sperrno, $msg, $data ) = @_[ ARG0 .. ARG3 ];
+	my( $priv_name, $type, $sperrno, $msg, $data ) = @_[ ARG0 .. ARG4 ];
 
 	# Handle different kinds of errors
 	if ( $type eq 'CONNECT' ) {

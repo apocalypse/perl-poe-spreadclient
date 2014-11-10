@@ -771,7 +771,7 @@ following:
 	cd spread-src-3.17.4
 	sudo "./configure && make && make install"
 	sudo nano /etc/default/spread # and set ENABLED=1
-	sudo nano /etc/spread/spread.conf # and change the Spread_Segment ... localhost 127.0.0.1 to 127.0.1.1
+	sudo nano /etc/spread/spread.conf # and change the Spread_Segment ... localhost 127.0.0.1 to 127.0.1.1 - I think it's because of my virt-manager vlan...
 	sudo /etc/init.d/spread start
 	sudo cpanp i POE::Component::SpreadClient
 

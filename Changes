@@ -2,6 +2,7 @@ Revision history for {{$dist->name}}
 
 {{$NEXT}}
 	Updates to the auto-generated files
+	Tweak POD and some code slightly to pass PerlCritic and other tests
 
 1.002	2011-02-17 00:34:38 UTC
 

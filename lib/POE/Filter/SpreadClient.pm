@@ -17,6 +17,8 @@ sub get {
 
 =pod
 
+=for Pod::Coverage get new
+
 =head1 DESCRIPTION
 
 This module implements the L<POE::Filter> interface for Spread.

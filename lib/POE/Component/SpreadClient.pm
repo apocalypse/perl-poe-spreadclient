@@ -12,7 +12,7 @@ use POE::Filter::SpreadClient;
 use Spread 3.017 qw( :MESS :ERROR );
 
 # Generate our states!
-use base 'POE::Session::AttributeBased';
+use parent 'POE::Session::AttributeBased';
 
 # Set some constants
 BEGIN {
@@ -22,7 +22,7 @@ BEGIN {
 # Create our instance!
 sub spawn {
     	# Get the OOP's type
-	my $type = shift;
+	my $type = shift; $type = $type; # shutup UnusedVars
 
 	# Our own options
 	my $ALIAS = shift;
@@ -147,10 +147,12 @@ sub connect : State {
 			# we retry because... there seems to be several microseconds until fileno() works!
 			# TODO we need to investigate the underlying cause of this...
 			my $retries = 0;
-			until ( ++$retries == 10 || ( $_[HEAP]->{'FH'} && fileno( $_[HEAP]->{'FH'} ) ) ) {
-				open $_[HEAP]->{'FH'}, '<&=', $mbox;
-				if ( DEBUG ) {
-					warn "SpreadClient: bad fh!!! retrying" if ! fileno( $_[HEAP]->{'FH'} );
+			while ( ++$retries < 10 ) {
+				open $_[HEAP]->{'FH'}, '<&=', $mbox or do { warn "SpreadClient: open failure ($!)" if DEBUG };
+				if ( $_[HEAP]->{'FH'} && fileno( $_[HEAP]->{'FH'} ) ) {
+					last;
+				} else {
+					warn "SpreadClient: fileno failure, retrying!" if DEBUG;
 				}
 			}
 			if ( $retries == 10 ) {
@@ -438,13 +440,7 @@ sub unregister : State {
 }
 
 sub RW_Error : State {
-	# ARG0 = operation, ARG1 = error number, ARG2 = error string, ARG3 = wheel ID
-	my ( $operation, $errnum, $errstr, $id ) = @_[ ARG0 .. ARG3 ];
-
-	# Debugging
-	if ( DEBUG ) {
-		warn "ReadWrite wheel($id) got error $errnum - $errstr doing $operation";
-	}
+	warn "ReadWrite wheel(" . $_[ARG3] . ") got error " . $_[ARG1] . " - " . $_[ARG2] . " doing " . $_[ARG0] if DEBUG;
 
 	# Disconnect now!
 	$_[KERNEL]->call( $_[SESSION], 'disconnect' );
@@ -453,6 +449,8 @@ sub RW_Error : State {
 }
 
 sub RW_GotPacket : State {
+	## no critic (Bangs::ProhibitBitwiseOperators Bangs::ProhibitNumberedNames)
+
 	# we might get multiple packets per read
 	for my $packet ( @{ $_[ARG0] } ) {
 		my( $type, $sender, $groups, $mess_type, $endian, $message ) = @$packet;
@@ -556,8 +554,11 @@ sub RW_GotPacket : State {
 
 =pod
 
+=for Pod::Coverage DEBUG RW_Error RW_GotPacket
+
 =head1 SYNOPSIS
 
+	use POE;
 	POE::Component::SpreadClient->spawn( 'spread' );
 
 	POE::Session->create(
@@ -590,102 +591,96 @@ B<XXX Beware: this module hasn't been tested with Spread 4! XXX>
 
 =head2 spawn
 
+Creates a new instance of this module. Returns the session ID.
+
 	POE::Component::Spread->spawn( 'spread' );
 
+	# ARGS
 	- The alias the component will take ( default: "SpreadClient" )
-
-	Returns the session ID.
 
 =head1 Public API
 
 =head2 connect
 
+Connect this POE session to the Spread server on port 4444 on localhost.
+Will send a C<_sp_error> event if unable to connect; C<_sp_connect> if successful.
+
 	$poe_kernel->post( spread => connect => '4444@localhost' );
 	$poe_kernel->post( spread => connect => '4444@localhost', 'logger' );
 
+	# ARGS
 	- The Server location
 	- The private name for the Spread connection ( default: "spread-PID" )
 
-	Connect this POE session to the Spread server on port 4444 on localhost.
-
-	Will send a C<_sp_error> event if unable to connect; C<_sp_connect> if successful
-
 =head2 disconnect
+
+Forces this session to disconnect. ( DOES NOT REMOVE ALIAS => look at destroy below )
+Will send a C<_sp_disconnect> event if disconnected; C<_sp_error> if failure.
 
 	$poe_kernel->post( spread => disconnect );
 
-	Forces this session to disconnect. ( DOES NOT REMOVE ALIAS => look at destroy below )
-
-	Will send a C<_sp_disconnect> event if disconnected; C<_sp_error> if failure
-
 =head2 subscribe
+
+Subscribe to a Spread messaging group. Messages will be sent to C<_sp_message> and
+join/leave/etc to C<_sp_admin> in the registered listeners. Automatically adds the session
+to the registered listeners. Will send a C<_sp_error> if unable to subscribe; C<_sp_admin>
+with join message if successful.
 
 	$poe_kernel->post( spread => subscribe => 'chatroom' );
 	$poe_kernel->post( spread => subscribe => [ 'chatroom', 'testing' ] );
 
-	- The group name(s)
-
-	Subscribe to a Spread messaging group. Messages will be sent to C<_sp_message> and
-	join/leave/etc to C<_sp_admin> in the registered listeners.
-
-	Automatically adds the session to the registered listeners.
-
-	Will send a C<_sp_error> if unable to subscribe; C<_sp_admin> with join message if successful
-
 =head2 unsubscribe
+
+Unsubscribes to a Spread messaging group. Does not remove the session from the listener list.
+Will send a C<_sp_error> if unable to unsubscribe; C<_sp_admin> with self_leave if successful.
 
 	$poe_kernel->post( spread => unsubscribe => 'chatroom' );
 	$poe_kernel->post( spread => unsubscribe => [ 'foobar', 'chatroom' ] );
 
-	Unsubscribes to a Spread messaging group. Does not remove the session from the listener list.
-
-	Will send a C<_sp_error> if unable to unsubscribe; C<_sp_admin> with self_leave if successful
-
 =head2 publish
+
+Send a string to the group(s). THIS WILL ONLY SEND STRINGS!
+If you need to send perl structures, use your own serializer/deserializer!
+Will send a C<_sp_error> if unable to publish.
 
 	$poe_kernel->post( spread => publish => 'chatroom', 'A/S/L?' );
 	$poe_kernel->post( spread => publish => [ 'chatroom', 'stats' ], 'A/S/L?' );
 	$poe_kernel->post( spread => publish => 'chatroom', 'special', 5 );
 	$poe_kernel->post( spread => publish => 'chatroom', 'A/S/L?', undef, RELIABLE_MESS & SELF_DISCARD );
 
+	# ARGS
 	- The group name(s)
 	- 2nd parameter ( int ) is the Spread mess_type -> application-defined ( default: 0 )
 	- The 3rd parameter is the spread message type -> import them from Spread.pm ( default: SAFE_MESS )
 
-	Send a string to the group(s).
+REMEMBER about the message size limitation! Therefore max message size is 100 * 1440 =~ 140kB.
 
-	THIS WILL ONLY SEND STRINGS! If you need to send perl structures, use your own serializer/deserializer!
-
-	REMEMBER about the message size limitation
-
-		From spread-src-3.17.3
-		#define MAX_MESSAGE_BODY_LEN	(MAX_SCATTER_ELEMENTS * (MAX_PACKET_SIZE - 32)) /* 32 is sizeof(packet_header) */
-		#define MAX_SCATTER_ELEMENTS    100
-		#define MAX_PACKET_SIZE 1472	/*1472 = 1536-64 (of udp)*/
-
-		Therefore max message size is 100 * 1440 =~ 140kB
-
-	Will send a C<_sp_error> if unable to publish
+	From spread-src-3.17.4 in sess_types.h
+	#define MAX_MESSAGE_BODY_LEN	(MAX_SCATTER_ELEMENTS * (MAX_PACKET_SIZE - 32)) /* 32 is sizeof(packet_header) */
+	#define MAX_SCATTER_ELEMENTS    100
+	#define MAX_PACKET_SIZE 1472	/*1472 = 1536-64 (of udp)*/
 
 =head2 register
 
-	$poe_kernel->post( spread => register );
+Registers the current session as a "registered listener" and will receive all events.
 
-	Registers the current session as a "registered listener" and will receive all events.
+	$poe_kernel->post( spread => register );
 
 =head2 unregister
 
-	$poe_kernel->post( spread => unregister );
+Removes the current session from the "registered listeners" list.
 
-	Removes the current session from the "registered listeners" list.
+	$poe_kernel->post( spread => unregister );
 
 =head2 destroy
 
+Destroys the session by removing it's alias and disconnecting if needed with C<_sp_disconnect>
+
 	$poe_kernel->post( spread => destroy );
 
-	Destroys the session by removing it's alias and disconnecting if needed with C<_sp_disconnect>
-
 =head1 EVENTS
+
+You will receive those events in the session that registered as a listener.
 
 =head2 C<_sp_connect>
 

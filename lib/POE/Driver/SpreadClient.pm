@@ -5,7 +5,8 @@ package POE::Driver::SpreadClient;
 # Import some stuff
 use Spread;
 
-use constant MAX_READS => 256;
+# magic number taken from Spread's MAX_READS
+my $MAX_READS = 256;
 
 sub new {
 	my $type = shift;
@@ -18,13 +19,13 @@ sub get {
 	my $self = shift;
 
 	my $reads_performed = 1;
-	my @buf = ();
+	my @buf;
 
 	# read once:
 	push @buf, [ Spread::receive( $$self ) ];
 
 	# Spread::poll returns 0 if no messages pending;
-	while( Spread::poll( $$self ) and ++$reads_performed <= MAX_READS ) {
+	while( Spread::poll( $$self ) and ++$reads_performed <= $MAX_READS ) {
 		push @buf, [ Spread::receive( $$self ) ];
 	}
 
@@ -34,6 +35,8 @@ sub get {
 1;
 
 =pod
+
+=for Pod::Coverage get new
 
 =head1 DESCRIPTION
 

@@ -761,9 +761,30 @@ You can enable debugging mode by doing this:
 	sub POE::Component::SpreadClient::DEBUG () { 1 }
 	use POE::Component::SpreadClient;
 
+=head2 Installing Spread on Ubuntu Trusty
+
+This documentation is really for myself, ha! As of Ubuntu 14.04 (Trusty) Spread is no longer
+included in the distribution nor any PPA hosts. In order to install this module I had to do the
+following:
+
+	wget http://mirrors.kernel.org/ubuntu/pool/universe/s/spread/spread_3.17.4-3_amd64.deb
+	wget http://mirrors.kernel.org/ubuntu/pool/universe/s/spread/libspread1_3.17.4-3_amd64.deb
+	wget http://mirrors.kernel.org/ubuntu/pool/universe/s/spread/libspread1-dev_3.17.4-3_amd64.deb
+	sudo dpkg -i *spread*.deb
+	wget --post-data "FILE=spread-src-3.17.4.tar.gz&name=a&company=a&email=a%40a.com&comment=a&Stage=Download" http://www.spread.org/download/download_full_release_only_spread.cgi --output-document=spread-src-3.17.4.tar.gz
+	tar -zxf spread-src-3.17.4.tar.gz
+	cd spread-src-3.17.4
+	sudo "./configure && make && make install"
+	sudo nano /etc/default/spread # and set ENABLED=1
+	sudo nano /etc/spread/spread.conf # and change the Spread_Segment ... localhost 127.0.0.1 to 127.0.1.1
+	sudo /etc/init.d/spread start
+	sudo cpanp i POE::Component::SpreadClient
+
 =head1 SEE ALSO
 Spread
 http://www.spread.org
+Spread::Client::Constants
+Spread::Session
 
 =head1 ACKNOWLEDGEMENTS
 
